@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="section-heading">*** DESTACADO ***</h2>
+
+{% if featured %}
+<table class="story-table" width="100%">
+  <tr><td>
+    <p class="category">{{ featured.category }}</p>
+    <h2 class="featured-title"><a href="{{ root }}{{ featured.url }}">{{ featured.title }}</a></h2>
+    <p class="byline">Por {{ featured.author }} · {{ featured.date }}</p>
+    <p>{{ featured.subtitle }}</p>
+    {% if featured.image %}
+    <p><img class="story-image" src="{{ root }}{{ featured.image }}" alt="{{ featured.image_alt }}"></p>
+    {% endif %}
+    <p><a href="{{ root }}{{ featured.url }}">[ LEER ARTÍCULO COMPLETO ]</a></p>
+  </td></tr>
+</table>
+{% else %}
+<p>La redacción todavía no publicó su primera nota.</p>
+{% endif %}
+
+<h2 class="section-heading">ÚLTIMAS PUBLICACIONES</h2>
+<table class="news-table" width="100%">
+  {% for article in articles %}
+  <tr>
+    <td class="date-cell">{{ article.date }}</td>
+    <td>
+      <span class="category">{{ article.category }}</span><br>
+      <a href="{{ root }}{{ article.url }}"><strong>{{ article.title }}</strong></a>
+      <p>{{ article.subtitle }}</p>
+      <span class="byline">Por {{ article.author }}</span>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td>Estamos preparando la primera edición.</td></tr>
+  {% endfor %}
+</table>
+<p class="all-news"><a href="{{ root }}archivo/index.html">[ VER TODAS LAS PUBLICACIONES ]</a></p>
+{% endblock %}

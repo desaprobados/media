@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="section-heading">SECCIÓN: {{ section_name | upper }}</h2>
+<p>{{ section_description }}</p>
+<table class="news-table" width="100%">
+  {% for article in articles %}
+  <tr>
+    <td class="date-cell">{{ article.date }}</td>
+    <td>
+      <span class="category">{{ article.category }}</span><br>
+      <a href="{{ root }}{{ article.url }}"><strong>{{ article.title }}</strong></a>
+      <p>{{ article.subtitle }}</p>
+      <span class="byline">Por {{ article.author }}</span>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td>Todavía no hay publicaciones en esta sección.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

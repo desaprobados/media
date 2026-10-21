@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="category">{{ article.category }}</p>
+<h2 class="article-title">{{ article.title }}</h2>
+<p class="article-subtitle">{{ article.subtitle }}</p>
+<p class="byline">Por {{ article.author }} · {{ article.date }}</p>
+<hr>
+{% if article.image %}
+<img class="story-image" src="{{ root }}{{ article.image }}" alt="{{ article.image_alt }}">
+{% endif %}
+<div class="article-body">{{ article.body }}</div>
+<hr>
+<p><a href="{{ root }}index.html">[ VOLVER A LA PORTADA ]</a></p>
+{% endblock %}

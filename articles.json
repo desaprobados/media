@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Desaprobados",
+    "subtitle": "Un nuevo portal de noticias independiente de Morón.",
+    "author": "Elpibe y Svs",
+    "date": "2026-10-19",
+    "category": "Editorial",
+    "category_slug": "editorial",
+    "url": "noticias/desaprobados.html",
+    "featured": true,
+    "tags": [
+      "Presentación",
+      "Editorial"
+    ],
+    "image": "assets/images/desaprobados.png"
+  }
+]

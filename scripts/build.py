@@ -12,6 +12,7 @@ import time
 import unicodedata
 from collections import Counter
 from datetime import date, datetime
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -171,6 +172,54 @@ def slugify(value: str) -> str:
     return value or "nota"
 
 
+def normalize_search_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(
+        char for char in normalized if not unicodedata.combining(char)
+    ).casefold()
+
+
+@cache
+def build_tag_matcher() -> tuple[list[dict[str, int]], list[int], list[list[tuple[str, str, int]]], dict[str, str]]:
+    allowed_names = {
+        slugify(term): term for term in sorted(ALLOWED_TERMS, key=str.casefold)
+    }
+    transitions: list[dict[str, int]] = [{}]
+    failures = [0]
+    matches: list[list[tuple[str, str, int]]] = [[]]
+
+    for key, term in allowed_names.items():
+        normalized_term = normalize_search_text(term)
+        if not normalized_term:
+            continue
+        state = 0
+        for char in normalized_term:
+            next_state = transitions[state].get(char)
+            if next_state is None:
+                next_state = len(transitions)
+                transitions[state][char] = next_state
+                transitions.append({})
+                failures.append(0)
+                matches.append([])
+            state = next_state
+        matches[state].append((key, term, len(normalized_term)))
+
+    pending = list(transitions[0].values())
+    position = 0
+    while position < len(pending):
+        state = pending[position]
+        position += 1
+        for char, next_state in transitions[state].items():
+            pending.append(next_state)
+            fallback = failures[state]
+            while fallback and char not in transitions[fallback]:
+                fallback = failures[fallback]
+            failures[next_state] = transitions[fallback].get(char, 0)
+            matches[next_state].extend(matches[failures[next_state]])
+
+    return transitions, failures, matches, allowed_names
+
+
 def parse_date(value: Any, path: Path) -> date:
     if isinstance(value, datetime):
         return value.date()
@@ -243,15 +292,11 @@ def markdown_to_html(body: str) -> str:
 def article_tag_counts(article: dict[str, Any]) -> tuple[Counter[str], dict[str, str]]:
     counts: Counter[str] = Counter()
     display_names: dict[str, str] = {}
-    allowed_names = {slugify(term): term for term in sorted(ALLOWED_TERMS, key=str.casefold)}
 
     searchable_text = " ".join(
         (article["title"], article["subtitle"], article["search_text"])
     )
-    normalized_text = unicodedata.normalize("NFKD", searchable_text)
-    normalized_text = "".join(
-        char for char in normalized_text if not unicodedata.combining(char)
-    ).casefold()
+    normalized_text = normalize_search_text(searchable_text)
 
     # Los tags explícitos también forman parte de la allowlist.
     for raw_tag in article["tags"]:
@@ -260,16 +305,31 @@ def article_tag_counts(article: dict[str, Any]) -> tuple[Counter[str], dict[str,
             counts[key] += 2
             display_names.setdefault(key, raw_tag.strip())
 
-    for key, term in allowed_names.items():
-        normalized_term = unicodedata.normalize("NFKD", term)
-        normalized_term = "".join(
-            char for char in normalized_term if not unicodedata.combining(char)
-        ).casefold()
-        pattern = rf"(?<![a-z0-9]){re.escape(normalized_term)}(?![a-z0-9])"
-        occurrences = len(re.findall(pattern, normalized_text))
-        if occurrences:
-            counts[key] += occurrences
+    transitions, failures, matches, _ = build_tag_matcher()
+    last_match_end: dict[str, int] = {}
+    state = 0
+    for index, char in enumerate(normalized_text):
+        while state and char not in transitions[state]:
+            state = failures[state]
+        state = transitions[state].get(char, 0)
+        for key, term, term_length in matches[state]:
+            start = index - term_length + 1
+            end = index
+            if start and (
+                "a" <= normalized_text[start - 1] <= "z"
+                or "0" <= normalized_text[start - 1] <= "9"
+            ):
+                continue
+            if end + 1 < len(normalized_text) and (
+                "a" <= normalized_text[end + 1] <= "z"
+                or "0" <= normalized_text[end + 1] <= "9"
+            ):
+                continue
+            if start <= last_match_end.get(key, -1):
+                continue
+            counts[key] += 1
             display_names.setdefault(key, term)
+            last_match_end[key] = end
 
     return counts, display_names
 

@@ -5,7 +5,7 @@ author: "Elpibe"
 date: "2026-10-23"
 category: "Música"
 featured: false
-image: "assets/images/charly.png"
+image: "assets/images/charly.webp"
 image_alt: "Charly García junto a los integrantes de Serú Girán"
 tags:
   - Música
@@ -141,9 +141,7 @@ Su legado no se limita a una lista de canciones inolvidables. La banda demostró
 
 ## Una eminencia que sigue vigente
 
-Volver a escuchar Serú Girán hoy es encontrarse con una obra que admite distintas lecturas. Se puede disfrutar de la complejidad musical, de las voces, de los arreglos y de la calidad de cada instrumentista. También se puede prestar atención a sus letras, a sus silencios y a las imágenes que construyen. Y, por supuesto, se puede escuchar a Charly. Porque si algo distingue a García es su capacidad para escribir canciones que parecen sencillas hasta que uno se detiene a observarlas. Detrás de una melodía inolvidable puede haber una armonía inesperada, una frase que cambia por completo el sentido de la canción o una imagen que sigue generando preguntas décadas después.
-
-Para mí, Serú Girán representa una de las etapas más fascinantes de su carrera. No solamente por la calidad de sus composiciones, sino también por el encuentro entre cuatro músicos extraordinarios que, juntos, consiguieron crear algo que ninguno habría hecho exactamente de la misma manera por separado. En una época en la que el miedo y la censura intentaban reducir los espacios de expresión, Serú Girán construyó una obra que apostaba por la imaginación, la sensibilidad y la libertad artística.
+Para mí, Serú Girán representa una de las etapas más fascinantes de su carrera. No solamente por la calidad de sus composiciones, sino también por el encuentro entre cuatro músicos extraordinarios que, juntos, consiguieron crear algo que ninguno habría hecho exactamente de la misma manera por separado. En una época en la que el miedo y la censura intentaban reducir los espacios de expresión, Serú Girán construyó una obra que iba por la imaginación, la sensibilidad y la libertad artística.
 
 Hoy Charly cumple 75 años. Y mientras sus canciones sigan encontrando nuevos oídos, mientras alguien vuelva a emocionarse con «Seminare», descubra un detalle escondido en «Eiti Leda» o se detenga a pensar en «Desarma y sangra», su música va a seguir viva. Feliz cumpleaños, Charly. Y gracias por tanto.
 

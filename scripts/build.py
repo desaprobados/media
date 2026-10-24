@@ -8,6 +8,7 @@ import json
 import re
 import shutil
 import sys
+import time
 import unicodedata
 from collections import Counter
 from datetime import date, datetime
@@ -20,12 +21,25 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup
 
 ROOT = Path(__file__).resolve().parents[1]
-print(f"Directorio raíz: {ROOT}")
 CONTENT_DIR = ROOT / "content"
 TEMPLATES_DIR = ROOT / "templates"
 ASSETS_DIR = ROOT / "assets"
 STATIC_DIR = ROOT / "static"
 OUTPUT_DIR = ROOT / "dist"
+BUILD_STARTED_AT = time.perf_counter()
+
+
+def log_progress(message: str) -> None:
+    elapsed = time.perf_counter() - BUILD_STARTED_AT
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"[{timestamp} +{elapsed:.1f}s] {message}", flush=True)
+
+
+def log_duration(message: str, started_at: float) -> None:
+    log_progress(f"{message} ({time.perf_counter() - started_at:.2f}s)")
+
+
+log_progress(f"Directorio raíz: {ROOT}")
 
 ALLOWED_CATEGORIES = {
     "Política": "politica",
@@ -264,11 +278,16 @@ def make_tag_cloud(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     counts: Counter[str] = Counter()
     display_names: dict[str, str] = {}
 
-    for article in articles:
+    for index, article in enumerate(articles, start=1):
+        log_progress(
+            f"Calculando temas {index}/{len(articles)}: {article['source']}"
+        )
+        article_started_at = time.perf_counter()
         article_counts, article_names = article_tag_counts(article)
         counts.update(article_counts)
         for key, name in article_names.items():
             display_names.setdefault(key, name)
+        log_duration(f"Temas calculados: {article['source']}", article_started_at)
 
     if not counts:
         return []
@@ -316,7 +335,14 @@ def collect_articles() -> list[dict[str, Any]]:
     articles: list[dict[str, Any]] = []
     used_urls: set[str] = set()
 
-    for path in sorted(CONTENT_DIR.rglob("*.md")):
+    log_progress(f"Buscando notas Markdown en {CONTENT_DIR}...")
+    scan_started_at = time.perf_counter()
+    markdown_paths = sorted(CONTENT_DIR.rglob("*.md"))
+    log_duration(f"Búsqueda terminada: {len(markdown_paths)} archivo(s)", scan_started_at)
+
+    for index, path in enumerate(markdown_paths, start=1):
+        article_started_at = time.perf_counter()
+        log_progress(f"Validando nota {index}/{len(markdown_paths)}: {path.relative_to(ROOT)}")
         metadata, body = read_markdown(path)
         slug = slugify(path.stem)
         url = f"noticias/{slug}.html"
@@ -336,6 +362,7 @@ def collect_articles() -> list[dict[str, Any]]:
             "body": Markup(markdown_to_html(body)),
         })
         articles.append(article)
+        log_duration(f"Nota lista: {path.relative_to(ROOT)}", article_started_at)
 
     articles.sort(key=lambda item: (item["date"], item["title"].casefold()), reverse=True)
 
@@ -353,13 +380,17 @@ def collect_articles() -> list[dict[str, Any]]:
 def build_tag_pages(env: Environment, articles: list[dict[str, Any]], tags: list[dict[str, Any]],
                     context: dict[str, Any], out: Path) -> None:
     by_tag: dict[str, list[dict[str, Any]]] = {tag["slug"]: [] for tag in tags}
-    for article in articles:
+    for index, article in enumerate(articles, start=1):
+        log_progress(
+            f"Relacionando temas {index}/{len(articles)}: {article['source']}"
+        )
         article_tags, _ = article_tag_counts(article)
         for tag_slug in article_tags.keys() & by_tag.keys():
             by_tag[tag_slug].append(article)
 
     template = env.get_template("section.html")
-    for tag in tags:
+    for index, tag in enumerate(tags, start=1):
+        log_progress(f"Generando tema {index}/{len(tags)}: {tag['name']}")
         target = out / "temas" / f'{tag["slug"]}.html'
         target.parent.mkdir(parents=True, exist_ok=True)
         page_context = dict(context)
@@ -375,14 +406,20 @@ def build_tag_pages(env: Environment, articles: list[dict[str, Any]], tags: list
         target.write_text(template.render(**page_context), encoding="utf-8")
 
 
-def build_site(base_url: str, check_only: bool = False) -> int:
+def build_site(check_only: bool = False) -> int:
+    build_started_at = time.perf_counter()
+    log_progress(f"Iniciando {'validación' if check_only else 'generación'}.")
+    phase_started_at = time.perf_counter()
     articles = collect_articles()
+    log_duration(f"Lectura y validación de {len(articles)} nota(s) finalizada", phase_started_at)
     if check_only:
         print(f"OK: {len(articles)} nota(s) validada(s).")
+        log_duration("Validación completa", build_started_at)
         return 0
 
     if not TEMPLATES_DIR.exists():
         raise ValueError("No existe templates/.")
+    log_progress("Cargando plantillas y preparando datos del sitio...")
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATES_DIR)),
         autoescape=select_autoescape(["html", "xml"]),
@@ -390,18 +427,22 @@ def build_site(base_url: str, check_only: bool = False) -> int:
         lstrip_blocks=True,
     )
 
-    # Para GitHub Pages en un subdirectorio, root debe incluir el prefijo del repositorio.
-    prefix = "/" + base_url.strip("/") + "/" if base_url.strip("/") else "/"
-    root_value = prefix
+    prefix = "/"
+    phase_started_at = time.perf_counter()
+    log_progress("Calculando temas y meses de archivo...")
     tags = make_tag_cloud(articles)
     archive = make_archive(articles)
+    log_duration(
+        f"Datos preparados: {len(tags)} tema(s), {len(archive)} mes(es) de archivo",
+        phase_started_at,
+    )
     latest = articles[:8]
     featured = next((a for a in articles if a["featured"]), None)
     context = {
         "title": "Portada",
         "description": "Desaprobados por la sociedad: prensa independiente desde el oeste.",
         "breadcrumb": "Portada",
-        "root": root_value,
+        "root": prefix,
         "articles": articles,
         "latest": latest,
         "featured": featured,
@@ -410,10 +451,15 @@ def build_site(base_url: str, check_only: bool = False) -> int:
     }
 
     # Regeneración limpia para no dejar páginas obsoletas.
+    phase_started_at = time.perf_counter()
+    log_progress(f"Preparando directorio de salida: {OUTPUT_DIR}")
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
     OUTPUT_DIR.mkdir(parents=True)
+    log_duration("Directorio de salida preparado", phase_started_at)
 
+    phase_started_at = time.perf_counter()
+    log_progress("Generando portada y página 404...")
     home = env.get_template("home.html")
     (OUTPUT_DIR / "index.html").write_text(home.render(**context), encoding="utf-8")
 
@@ -427,9 +473,14 @@ def build_site(base_url: str, check_only: bool = False) -> int:
     (OUTPUT_DIR / "404.html").write_text(
         not_found.render(**not_found_context), encoding="utf-8"
     )
+    log_duration("Portada y página 404 generadas", phase_started_at)
 
     article_template = env.get_template("article.html")
-    for article in articles:
+    for index, article in enumerate(articles, start=1):
+        article_started_at = time.perf_counter()
+        log_progress(
+            f"Renderizando nota {index}/{len(articles)}: {article['source']}"
+        )
         target = OUTPUT_DIR / article["url"]
         target.parent.mkdir(parents=True, exist_ok=True)
         page_context = dict(context)
@@ -441,10 +492,12 @@ def build_site(base_url: str, check_only: bool = False) -> int:
             "root": prefix,
         })
         target.write_text(article_template.render(**page_context), encoding="utf-8")
+        log_duration(f"Nota generada: {article['source']}", article_started_at)
 
     section_template = env.get_template("section.html")
     categories = sorted(ALLOWED_CATEGORIES.keys())
     for category in categories:
+        log_progress(f"Generando sección: {category}")
         category_slug = ALLOWED_CATEGORIES[category]
         section_articles = [a for a in articles if a["category"] == category]
         target = OUTPUT_DIR / "secciones" / f"{category_slug}.html"
@@ -465,7 +518,8 @@ def build_site(base_url: str, check_only: bool = False) -> int:
     archive_dir = OUTPUT_DIR / "archivo"
     archive_dir.mkdir(parents=True, exist_ok=True)
     archive_rows = []
-    for month in archive:
+    for index, month in enumerate(archive, start=1):
+        log_progress(f"Generando archivo mensual {index}/{len(archive)}: {month['label']}")
         month_articles = [
             a for a in articles
             if a["date"][:7] == month["slug"]
@@ -503,6 +557,7 @@ def build_site(base_url: str, check_only: bool = False) -> int:
         "fuentes.html": ("Fuentes y criterios", "Las notas deben identificar sus fuentes cuando corresponda, enlazar documentos públicos y distinguir hechos comprobados, testimonios y opiniones. Si encontrás un error, contactá a la redacción para que podamos revisarlo."),
     }
     for filename, (heading, copy) in info_pages.items():
+        log_progress(f"Generando página informativa: {filename}")
         page_context = dict(context)
         page_context.update({
             "title": heading, "description": copy, "breadcrumb": heading,
@@ -510,9 +565,13 @@ def build_site(base_url: str, check_only: bool = False) -> int:
         })
         (OUTPUT_DIR / filename).write_text(info_template.render(**page_context), encoding="utf-8")
 
+    phase_started_at = time.perf_counter()
+    log_progress(f"Generando {len(tags)} página(s) de temas...")
     build_tag_pages(env, articles, tags, context, OUTPUT_DIR)
+    log_duration("Páginas de temas generadas", phase_started_at)
 
     # JSON legible para herramientas futuras; no contiene el HTML del cuerpo.
+    log_progress("Escribiendo índice articles.json...")
     json_articles = []
     for a in articles:
         json_articles.append({
@@ -534,39 +593,33 @@ def build_site(base_url: str, check_only: bool = False) -> int:
 
     # Copiar recursos públicos.
     if STATIC_DIR.exists():
+        phase_started_at = time.perf_counter()
+        log_progress(f"Copiando recursos estáticos desde {STATIC_DIR}...")
         shutil.copytree(STATIC_DIR, OUTPUT_DIR / "static", dirs_exist_ok=True)
+        log_duration("Recursos estáticos copiados", phase_started_at)
     if ASSETS_DIR.exists():
+        phase_started_at = time.perf_counter()
+        log_progress(f"Copiando recursos desde {ASSETS_DIR}...")
         shutil.copytree(ASSETS_DIR, OUTPUT_DIR / "assets", dirs_exist_ok=True)
+        log_duration("Recursos copiados", phase_started_at)
 
     print(f"Sitio generado en: {OUTPUT_DIR}")
     print(f"Notas: {len(articles)} | Secciones: {len(categories)} | Temas: {len(tags)}")
-    print("Para previsualizar: python -m http.server 8000 -d dist")
-    print(f"Acceder en: http://localhost:8000{prefix}")
+    log_duration("Generación completa", build_started_at)
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Genera el sitio estático de Desaprobados.")
-    base_url_options = parser.add_mutually_exclusive_group()
-    base_url_options.add_argument(
-        "--base-url",
-        default="",
-        help="Prefijo de GitHub Pages, por ejemplo /desaprobados/. Vacío para dominio raíz.",
-    )
-    base_url_options.add_argument(
-        "--pages",
-        action="store_true",
-        help="Prepara las rutas para el repositorio GitHub Pages DesaprobadosMedia.",
-    )
     parser.add_argument(
         "--check",
         action="store_true",
         help="Valida los Markdown y metadatos sin generar HTML.",
     )
     args = parser.parse_args()
-    base_url = "DesaprobadosMedia" if args.pages else args.base_url
+    log_progress(f"Argumentos recibidos: check={args.check}")
     try:
-        return build_site(base_url, check_only=args.check)
+        return build_site(check_only=args.check)
     except (ValueError, OSError, yaml.YAMLError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

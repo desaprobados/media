@@ -145,4 +145,4 @@ Para mí, Serú Girán representa una de las etapas más fascinantes de su carre
 
 Hoy Charly cumple 75 años. Y mientras sus canciones sigan encontrando nuevos oídos, mientras alguien vuelva a emocionarse con «Seminare», descubra un detalle escondido en «Eiti Leda» o se detenga a pensar en «Desarma y sangra», su música va a seguir viva. Feliz cumpleaños, Charly. Y gracias por tanto.
 
-SAY NO MORE
+**SAY NO MORE.**

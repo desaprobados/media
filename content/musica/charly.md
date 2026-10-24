@@ -5,7 +5,7 @@ author: "Elpibe"
 date: "2026-10-23"
 category: "Música"
 featured: false
-image: "assets/images/charly.webp"
+image: "assets/images/charly.png"
 image_alt: "Charly García junto a los integrantes de Serú Girán"
 tags:
   - Música
